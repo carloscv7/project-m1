@@ -5,29 +5,32 @@ let ctx = canvas.getContext("2d");
 
 const R = 0, L = 1, RSH = 2, LSH = 3, RS = 4, LS = 5; 
 const FIRE = 0;
-const CRUSADER = 0, PIRATE = 1;
+const HERO = 0, CRUSADER = 1, PIRATE = 2;
 let bgSrc = "../images/background.png", bgImg = new Image(), bgReady = false;
 bgImg.src = bgSrc; 
 bgImg.onload = function(){
     bgReady=true;
 }
-let src = ["../images/derecha.png", "../images/izquierda.png",
-"../images/derecha-escudo.png", "../images/izquierda-escudo.png",
-"../images/derecha-espada.png", "../images/izquierda-espada.png"]
 let magicSrc = ["../images/fire.png"], magicImg = [], magicReady = [];
-let enemySrc = [["../images/e1-derecha.png", "../images/e1-izquierda.png",
+let characterSrc = [["../images/derecha.png", "../images/izquierda.png",
+"../images/derecha-escudo.png", "../images/izquierda-escudo.png",
+"../images/derecha-espada.png", "../images/izquierda-espada.png"], 
+["../images/e1-derecha.png", "../images/e1-izquierda.png",
 "../images/e1-derecha-escudo.png", "../images/e1-izquierda-escudo.png",
 "../images/e1-derecha-espada.png", "../images/e1-izquierda-espada.png"], 
 ["../images/e2-derecha.png", "../images/e2-izquierda.png",
 "../images/e2-derecha-escudo.png", "../images/e2-izquierda-escudo.png",
-"../images/e2-derecha-espada.png", "../images/e2-izquierda-espada.png"]], enemyImg = [], enemyReady = [];
-let heroImg = [], heroReady = [];
-for(let i = 0; i < src.length; i++){
-    heroImg.push(new Image());
-    heroImg[i].src = src[i];
-    heroReady[i] = false;
-    heroImg[i].onload = function(){
-        heroReady[i] = true;
+"../images/e2-derecha-espada.png", "../images/e2-izquierda-espada.png"]], characterReady = [];
+let characterImg = [], heroReady = [];
+for(let i = 0; i < characterSrc.length; i++){
+    for(let j = 0; j < characterSrc[i].length; j++){
+        characterImg.push([]);
+        characterImg[i][j] = new Image();
+        characterImg[i][j].src = characterSrc[i][j];
+        characterReady.push([]);
+        characterImg[i][j].onload = function(){
+            characterReady[i][j] = true;
+        }
     }
 }
 
@@ -39,41 +42,29 @@ for(let i = 0; i < magicSrc.length; i++){
     }
 }
 
-for(let i = 0; i < enemySrc.length; i++){
-    for(let j = 0; j < enemySrc[i].length; j++){
-        enemyImg.push([]);
-        enemyImg[i][j] = new Image();
-        enemyImg[i][j].src = enemySrc[i][j];
-        enemyReady.push([]);
-        enemyImg[i][j].onload = function(){
-            enemyReady[i][j] = true;
-        }
-    }
-}
+
 
 function gameOver(){
 
 }
-
-function isColliding(obj1, obj2){
-
-}
-
 class Character{
-    constructor(type, direction, magic, magicka, stamina, x, life){
-        this.life = life;
+    constructor(type, direction, x, magic, life, magicka, stamina){
         this.type = type;
+        this.img = characterImg[this.type][direction];
+        this.life = life;
+        this.initialLife = life;
+        this.magicka = magicka;
+        this.initialMagicka = magicka;
+        this.stamina = stamina;
+        this.initialStamina = stamina;
         this.width = 70;
         this.height = 100;
-        this.img = enemyImg[this.type][direction];
         this.direction = direction;
         this.magic = magic;
-        this.magicka = magicka;
-        this.stamina = stamina;
         this.swordAttack = false;
         this.shieldRaised = false; 
-        this.magicObjArr = [];
         this.jumping = false;
+        this.magicObjArr = [];
         this._x = x;
         this._y = canvas.height - 100;
     }
@@ -112,18 +103,19 @@ class Character{
             }
 
             if(!this.shieldRaised){
-                this.img = enemyImg[this.type][direction];
+                this.img = characterImg[this.type][direction];
             }else{
                 if(direction === R){
-                    this.img = enemyImg[this.type][RSH];
+                    this.img = characterImg[this.type][RSH];
                 }else{
-                    this.img = enemyImg[this.type][LSH];
+                    this.img = characterImg[this.type][LSH];
                 }
             }
     }
     jump(){
         let intervalId;
-        if(this._y === canvas.height-100){
+        if(this._y === canvas.height-100 && !this.jumping){
+            this.jumping = true;
             intervalId = setInterval(()=>{
                 if(this._y > 250){
                     this._y -= 3;
@@ -144,31 +136,6 @@ class Character{
 
         }
     }
-    attack(){
-        if(!this.swordAttack && this.stamina >= 20){
-            this.stamina -= 20;
-            if(this.direction === R){
-                this.img = enemyImg[this.type][RS];
-            }else{
-                this.img = enemyImg[this.type][LS];
-            }
-            this.swordAttack = true;
-
-            setTimeout(()=>{
-                if(this.direction === R){
-                    this.img = enemyImg[this.type][R]
-                }else{
-                    this.img = enemyImg[this.type][L];
-                }
-                this.swordAttack = false;
-            }, 200);
-            if(heroObj.shieldRaised){
-                heroObj.life -= 3;
-            }else{
-                heroObj.life -= 10;
-            }
-        }
-    }
     shoot(){
         if(this.magicka >= 50){
             this.lowerShield();
@@ -187,53 +154,19 @@ class Character{
         }
     }
     raiseShield(){
-        if(this.img === enemyImg[this.type][R] || this.img === enemyImg[this.type][RS]){
-            this.img = enemyImg[this.type][RSH];
+        if(this.img === characterImg[this.type][R] || this.img === characterImg[this.type][RS]){
+            this.img = characterImg[this.type][RSH];
         }
-        if(this.img === enemyImg[this.type][L] || this.img === enemyImg[this.type][LS]){
-            this.img = enemyImg[this.type][LSH];
+        if(this.img === characterImg[this.type][L] || this.img === characterImg[this.type][LS]){
+            this.img = characterImg[this.type][LSH];
         }
         this.shieldRaised = true;
     }
     lowerShield(){
-        this.img = enemyImg[this.type][this.direction];
+        this.img = characterImg[this.type][this.direction];
         this.shieldRaised = false;
     }
-    follow(distance){
-        if(distance > 0 && distance >= heroObj.width){
-            this.move(L);
-        }
-        if(distance < 0 && distance <= -(this.width)){
-            this.move(R);
-        }
-    }
-    run(){
-        let intervalId2 = setInterval(()=>{
-            if(this.magicka < 100){
-                this.magicka++;
-                this.stamina++;
-            }
-            if(this.life <= 0){
-                clearInterval(intervalId2);
-            }
-        },100);
-        let intervalId = setInterval(() => {
-            let distance;
-            distance = this._x - heroObj.x;
-            if(Math.random() <= 0.7){
-                this.follow(distance);
-                this.raiseShield();
-            }else{
-                this.shoot();
-            }
 
-            if(this.isCollidingWith(heroObj).bool){
-                this.attack();
-            }
-
-        }, 40);
-        
-    }
     isCollidingWith(obj){
         let collision = {bool: false};
         let distance = this.x - obj.x;
@@ -252,12 +185,127 @@ class Character{
 
     }
     ready(){
-        for(let el of enemyReady[this.type]){
+        for(let el of characterReady[this.type]){
             if(el === false){
                 return false;
             }
         }
         return true;
+    }
+}
+
+class Enemy extends Character{
+    attack(){
+        if(!this.swordAttack && this.stamina >= 20){
+            this.lowerShield();
+            this.stamina -= 20;
+            if(this.direction === R){
+                this.img = characterImg[this.type][RS];
+            }else{
+                this.img = characterImg[this.type][LS];
+            }
+            this.swordAttack = true;
+
+            setTimeout(()=>{
+                if(this.direction === R){
+                    this.img = characterImg[this.type][R]
+                }else{
+                    this.img = characterImg[this.type][L];
+                }
+                this.swordAttack = false;
+            }, 200);
+            if(hero.shieldRaised){
+                hero.life -= 3;
+                hero.stamina -= 10;
+            }else{
+                hero.life -= 10;
+            }
+        }
+    }
+    follow(distance){
+        if(distance > 0 && distance >= hero.width){
+            this.move(L);
+        }
+        if(distance < 0 && distance <= -(this.width)){
+            this.move(R);
+        }
+    }
+    run(){
+        let intervalId2 = setInterval(()=>{
+            if(this.magicka < this.initialMagicka){
+                this.magicka++;
+            }
+            if(this.stamina < this.initialStamina){
+                this.stamina++;
+            }
+            if(this.life <= 0){
+                clearInterval(intervalId2);
+            }
+        },100);
+        let intervalId = setInterval(() => {
+            let distance;
+            distance = this._x - hero.x;
+            if(Math.random() <= 0.7){
+                this.follow(distance);
+                this.raiseShield();
+            }else{
+                this.shoot();
+            }
+
+            if(this.isCollidingWith(hero).bool && this.direction === this.isCollidingWith(hero).direction){
+                this.attack();
+            }
+
+        }, 40);
+    }
+}
+
+class Hero extends Character{
+    attack(){
+        if(!this.swordAttack && this.stamina >= 20){
+            this.stamina -= 20;
+            if(this.direction === R){
+                this.img = characterImg[HERO][RS];
+            }else{
+                this.img = characterImg[HERO][LS];
+            }
+            this.swordAttack = true;
+
+            setTimeout(()=>{
+                if(this.direction === R){
+                    this.img = characterImg[HERO][R]
+                }else{
+                    this.img = characterImg[HERO][L];
+                }
+                this.swordAttack = false;
+            }, 200);
+
+            if(this.isCollidingWith(enemy[0]).bool && this.direction === this.isCollidingWith(enemy[0]).direction){
+                if(enemy[0].shieldRaised){
+                    enemy[0].life -= 5;
+                    enemy[0].stamina -= 10;
+                }else{
+                    enemy[0].life -= 10;
+                }
+            }
+            
+        }
+    }
+    run(){
+        let intervalId = setInterval(()=>{
+            if(this.life <= 0){
+                gameOver();
+            }
+            if(this.life < this.initialLife){
+                this.life += 1;
+            }
+            if(this.magicka < this.initialMagicka){
+                this.magicka += 2;
+            }
+            if(this.stamina < this.initialStamina){
+                this.stamina += 3;
+            }
+        }, 550);
     }
 }
 
@@ -285,221 +333,29 @@ class Magic{
     }
 }
 
-let heroObj = {
-    img: heroImg[R],
-    life: 150,
-    magicka: 100,
-    stamina: 100,
-    direction: R,
-    width: undefined,
-    height: undefined,
-    shieldRaised: false,
-    swordAttack: false,
-    shooting: false,
-    magic: FIRE,
-    magicObjArr: [],
-    _x: canvas.width/2 - 50,
-    _y: canvas.height - 100,
-    jumping: false,
-    set x(num){
-        if(num >= 0 && num <= 900-70){
-            this._x = num;
-        }
-    },
-    get x(){
-        return this._x;
-    },
-    get y(){
-        return this._y;
-    },
-    move: function(direction){
-        this.direction = direction;
-            if(this.jumping){
-                let i = 0;
-                let intervalId = setInterval(() => {
-                    if(direction === L){
-                        this.x -= 20;
-                    }else{
-                        this.x += 20;
-                    }
-                    i++;
-                    if(i === 7){
-                        clearInterval(intervalId);
-                    }
-                }, 6);
-            }else{
-                if(direction === L){
-                    this.x -= 6;
-                }else{
-                    this.x += 6;
-                }
-            }
-
-            if(!this.shieldRaised){
-                this.img = heroImg[direction];
-            }else{
-                if(direction === R){
-                    this.img = heroImg[RSH];
-                }else{
-                    this.img = heroImg[LSH];
-                }
-            }
-    },
-    jump: function(){
-        this.jumping = true;
-        let intervalId;
-        if(this._y === canvas.height-100){
-            intervalId = setInterval(()=>{
-                if(this._y > 250){
-                    this._y -= 3;
-                }
-                if(this._y === 250){
-                    clearInterval(intervalId);
-                    intervalId = setInterval(() =>{
-                        if(this._y < 400){
-                            this._y += 3;
-                        }
-                        if(this._y === 400){
-                            clearInterval(intervalId);
-                            this.jumping = false;
-                        }
-                    },7);
-                }
-            }, 7);
-
-        }
-    },
-    attack: function(){
-        if(!this.swordAttack && this.stamina >= 20){
-            this.stamina -= 20;
-            if(this.direction === R){
-                this.img = heroImg[RS];
-            }else{
-                this.img = heroImg[LS];
-            }
-            this.swordAttack = true;
-
-            setTimeout(()=>{
-                if(this.direction === R){
-                    this.img = heroImg[R]
-                }else{
-                    this.img = heroImg[L];
-                }
-                this.swordAttack = false;
-            }, 200);
-
-            if(isCollidingWith(enemy[0]).bool){
-                if(enemy[0].shieldRaised){
-                    enemy[0].life-= 5;
-                }else{
-                    enemy[0].life -= 10;
-                }
-            }
-            
-        }
-    },
-    shoot: function(){
-        if(this.magicka >= 40){
-            this.magicka -= 40;
-            if(this.magic === FIRE){
-                this.shooting = true;
-                this.magicObjArr.push(new Magic(magicImg[FIRE], this._x + 40, this.y+40));
-                let direction = this.direction;
-                let magicObj = this.magicObjArr[this.magicObjArr.length-1];
-                let intervalId = setInterval(()=>{
-                    magicObj.move(direction);
-                    if(magicObj.x < 0-30 || magicObj.x >= canvas.width){
-                        this.magicObjArr.unshift();
-                        clearInterval(intervalId);
-                    }
-                }, 10);
-            }
-        }
-    },
-    raiseShield: function(){
-        if(this.img === heroImg[R] || this.img === heroImg[RS]){
-            this.img = heroImg[RSH];
-        }
-        if(this.img === heroImg[L] || this.img === heroImg[LS]){
-            this.img = heroImg[LSH];
-        }
-        this.shieldRaised = true;
-    },
-    lowerShield: function(){
-        if(this.direction === R){
-            this.img = heroImg[R];
-        }else{
-            this.img = heroImg[L];
-        }
-        this.shieldRaised = false;
-    },
-    run: function(){
-        let intervalId = setInterval(()=>{
-            if(this.life <= 0){
-                gameOver();
-            }
-            if(this.life < 150){
-                this.life += 1;
-            }
-            if(this.magicka < 100){
-                this.magicka += 2;
-            }
-            if(this.stamina < 100){
-                this.stamina += 2;
-            }
-        }, 550);
-    },
-    isCollidingWith: function(obj){
-        let collision = {bool: false};
-        let distance = this.x - obj.x;
-        if(distance >= 0){
-            collision.direction = L;
-        }else{
-            collision.direction = R;
-        }
-        if (this.x < obj.x + obj.width &&
-            this.x + this.width > obj.x &&
-            this.y < obj.y + obj.height &&
-            this.height + this.y > obj.y) {
-                collision.bool = true;
-         }
-         return collision;
-
-    },
-    ready: function(){
-        for(let el of heroReady){
-            if(el === false){
-                return false;
-            }
-        }
-        return true;
-    }
-
-}
-
 addEventListener("keydown", (event) =>{
     switch(event.keyCode){
         case 38:
         case 32:
-            if(!heroObj.jumping){
-                heroObj.jump();
+            if(!hero.jumping){
+                hero.jump();
             }
             break;
         case 37:
-            heroObj.move(L);
+            hero.move(L);
             break;
         case 39:
-            heroObj.move(R);
+            hero.move(R);
             break;
         case 65:
-            heroObj.raiseShield();
+            hero.raiseShield();
             break;
         case 83:
-            heroObj.attack();
+            hero.attack();
             break;
         case 68:
-            if(!heroObj.swordAttack && !heroObj.shieldRaised){
-                heroObj.shoot();
+            if(!hero.swordAttack && !hero.shieldRaised){
+                hero.shoot();
             }
             break;
         
@@ -510,13 +366,14 @@ addEventListener("keydown", (event) =>{
 addEventListener("keyup", (event) =>{
     switch(event.keyCode){
         case 65:
-            heroObj.lowerShield();
+            hero.lowerShield();
             break;
     }
 });
 
-heroObj.run();
-let enemy = [new Character(CRUSADER, L, FIRE, 100, 100, canvas.width-70, 100), new Character(PIRATE, L, FIRE, 150, 70, canvas.width-10, 100)];
+hero = new Hero(HERO, R, canvas.width/2 - 100, FIRE, 150, 100, 100);
+hero.run();
+let enemy = [new Enemy(CRUSADER, L, canvas.width-70, FIRE, 100, 100, 100), new Character(PIRATE, L, canvas.width-70, FIRE, 100, 150, 70)];
 setTimeout(()=>{
     enemy[0].run();
 }, 2000);
@@ -531,31 +388,31 @@ function render(){
     if(bgReady){
         ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
     }
-    if(heroObj.ready()){
-        if(heroObj.img === heroImg[RS]){
-            heroObj.width = 90;
-            heroObj.height = 100;
-            ctx.drawImage(heroObj.img, heroObj.x, heroObj.y, heroObj.width, heroObj.height);
-        }else if(heroObj.img === heroImg[LS]){
-            heroObj.width = 90;
-            heroObj.height = 100;
-            ctx.drawImage(heroObj.img, heroObj.x-20, heroObj.y, heroObj.width, heroObj.height);
+    if(hero.ready()){
+        if(hero.img === characterImg[HERO][RS]){
+            hero.width = 90;
+            hero.height = 100;
+            ctx.drawImage(hero.img, hero.x, hero.y, hero.width, hero.height);
+        }else if(hero.img === characterImg[HERO][LS]){
+            hero.width = 90;
+            hero.height = 100;
+            ctx.drawImage(hero.img, hero.x-20, hero.y, hero.width, hero.height);
         }else{
-            heroObj.width = 70;
-            heroObj.height = 100;
-            ctx.drawImage(heroObj.img, heroObj.x, heroObj.y, heroObj.width, heroObj.height);
+            hero.width = 70;
+            hero.height = 100;
+            ctx.drawImage(hero.img, hero.x, hero.y, hero.width, hero.height);
         }
 
         ctx.fillStyle = "red";
-        ctx.fillRect(10,10, heroObj.life*2, 20);
+        ctx.fillRect(10,10, hero.life*2, 20);
         ctx.fillStyle = "blue";
-        ctx.fillRect(10,35, heroObj.magicka*3, 20);
+        ctx.fillRect(10,35, hero.magicka*3, 20);
         ctx.fillStyle = "green";
-        ctx.fillRect(10,60, heroObj.stamina*3, 20);
+        ctx.fillRect(10,60, hero.stamina*3, 20);
     }
 
-    if(heroObj.magicObjArr.length > 0){
-        for(let magicObj of heroObj.magicObjArr){
+    if(hero.magicObjArr.length > 0){
+        for(let magicObj of hero.magicObjArr){
             if(magicObj.ready()){
                 ctx.drawImage(magicObj.img, magicObj.x, magicObj.y, 30, 30);
             }
@@ -563,18 +420,17 @@ function render(){
     }
 
     if(enemy[0].ready()){
-        if(enemy[0].img === enemyImg[CRUSADER][RS]){
+        if(enemy[0].img === characterImg[CRUSADER][RS]){
             enemy[0].width = 90;
             enemy[0].height = 100;
             ctx.drawImage(enemy[0].img, enemy[0].x, enemy[0].y, enemy[0].width, enemy[0].height);
-        }else if(enemy[0].img === enemyImg[CRUSADER][LS]){
+        }else if(enemy[0].img === characterImg[CRUSADER][LS]){
             enemy[0].width = 90;
             enemy[0].height = 100;
             ctx.drawImage(enemy[0].img, enemy[0].x-20, enemy[0].y, enemy[0].width, enemy[0].height);
         }else{
             enemy[0].width = 70;
             enemy[0].height = 100;
-            console.log(enemy[0].x)
             ctx.drawImage(enemy[0].img, enemy[0].x, enemy[0].y, enemy[0].width, enemy[0].height);
         }
         if(enemy[0].magicObjArr.length > 0){
@@ -584,6 +440,8 @@ function render(){
                 }
             }
         }
+        ctx.fillStyle = "red";
+        ctx.fillRect(canvas.width - 310 ,10, enemy[0].life*3, 20);
     }
 }
 

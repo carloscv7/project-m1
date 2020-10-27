@@ -62,6 +62,7 @@ class Character{
         this.direction = direction;
         this.magic = magic;
         this.swordAttack = false;
+        this.shooting = false;
         this.shieldRaised = false; 
         this.jumping = false;
         this.magicObjArr = [];
@@ -139,6 +140,7 @@ class Character{
     shoot(){
         if(this.magicka >= 50){
             this.lowerShield();
+            this.shooting = true;
             this.magicka -= 50;
             this.shooting = true;
             this.magicObjArr.push(new Magic(magicImg[this.magic], this._x + 40, this.y+40));
@@ -149,18 +151,23 @@ class Character{
                 if(magicObj.x < 0-30 || magicObj.x >= canvas.width){
                     this.magicObjArr.unshift();
                     clearInterval(intervalId);
+                    if(this.magicObjArr.length === 0){
+                        this.shooting = false;
+                    }
                 }
             }, 10);
         }
     }
     raiseShield(){
-        if(this.img === characterImg[this.type][R] || this.img === characterImg[this.type][RS]){
-            this.img = characterImg[this.type][RSH];
+        if(this.stamina >= 10){
+            if(this.img === characterImg[this.type][R] || this.img === characterImg[this.type][RS]){
+                this.img = characterImg[this.type][RSH];
+            }
+            if(this.img === characterImg[this.type][L] || this.img === characterImg[this.type][LS]){
+                this.img = characterImg[this.type][LSH];
+            }
+            this.shieldRaised = true;
         }
-        if(this.img === characterImg[this.type][L] || this.img === characterImg[this.type][LS]){
-            this.img = characterImg[this.type][LSH];
-        }
-        this.shieldRaised = true;
     }
     lowerShield(){
         this.img = characterImg[this.type][this.direction];
@@ -232,6 +239,9 @@ class Enemy extends Character{
     }
     run(){
         let intervalId2 = setInterval(()=>{
+            if(this.stamina <= 10){
+                this.lowerShield();
+            }
             if(this.magicka < this.initialMagicka){
                 this.magicka++;
             }
@@ -257,6 +267,17 @@ class Enemy extends Character{
             }
 
         }, 40);
+        let intervalId3 = setInterval(() => {
+            if(this.shooting){
+                for(let i = 0; i < this.magicObjArr.length; i++){
+                    if(this.magicObjArr[i].isCollidingWith(hero).bool){
+                        hero.life -= 10;
+                        this.magicObjArr.splice(i, 1);
+                    }
+                }
+            }
+        }, 10);
+        
     }
 }
 
@@ -296,8 +317,11 @@ class Hero extends Character{
             if(this.life <= 0){
                 gameOver();
             }
+            if(this.stamina <= 10){
+                this.lowerShield();
+            }
             if(this.life < this.initialLife){
-                this.life += 1;
+                this.life += 0.5;
             }
             if(this.magicka < this.initialMagicka){
                 this.magicka += 2;
@@ -306,6 +330,16 @@ class Hero extends Character{
                 this.stamina += 3;
             }
         }, 550);
+        let intervalId2 = setInterval(() => {
+            if(this.shooting){
+                for(let i = 0; i < this.magicObjArr.length; i++){
+                    if(this.magicObjArr[i].isCollidingWith(enemy[0]).bool){
+                        enemy[0].life -= 10;
+                        this.magicObjArr.splice(i, 1);
+                    }
+                }
+            }
+        }, 10);
     }
 }
 
@@ -314,6 +348,8 @@ class Magic{
         this.img = img;
         this.x = x;
         this.y = y;
+        this.width = 30;
+        this.height = 30;
     }
 
     move(direction){
@@ -322,6 +358,23 @@ class Magic{
         }else{
             this.x += 6;
         }
+    }
+    isCollidingWith(obj){
+        let collision = {bool: false};
+        let distance = this.x - obj.x;
+        if(distance >= 0){
+            collision.direction = L;
+        }else{
+            collision.direction = R;
+        }
+        if (this.x < obj.x + obj.width &&
+            this.x + this.width > obj.x &&
+            this.y < obj.y + obj.height &&
+            this.height + this.y > obj.y) {
+                collision.bool = true;
+         }
+         return collision;
+
     }
     ready(){
         for(let el of magicReady){
@@ -414,7 +467,7 @@ function render(){
     if(hero.magicObjArr.length > 0){
         for(let magicObj of hero.magicObjArr){
             if(magicObj.ready()){
-                ctx.drawImage(magicObj.img, magicObj.x, magicObj.y, 30, 30);
+                ctx.drawImage(magicObj.img, magicObj.x, magicObj.y, magicObj.width, magicObj.height);
             }
         }
     }
@@ -436,7 +489,7 @@ function render(){
         if(enemy[0].magicObjArr.length > 0){
             for(let magicObj of enemy[0].magicObjArr){
                 if(magicObj.ready()){
-                    ctx.drawImage(magicObj.img, magicObj.x, magicObj.y, 30, 30);
+                    ctx.drawImage(magicObj.img, magicObj.x, magicObj.y, magicObj.width, magicObj.height);
                 }
             }
         }

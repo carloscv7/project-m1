@@ -570,10 +570,7 @@ addEventListener("keyup", (event) =>{
 
 hero = new Hero(HERO, R, canvas.width/2 - 100, FIRE, 150, 100, 100);
 hero.run();
-let enemy = [new Enemy(CRUSADER, L, canvas.width-70, FIRE, 100, 100, 100)];
-setTimeout(()=>{
-    enemy[0].run();
-}, 2000);
+
 
 function render(){
     ctx.clearRect(0,0, canvas.width, canvas.height);
@@ -645,7 +642,16 @@ function render(){
     }
 }
 
+let enemy = [];
+let runEnemy = true;
 function startGame(){
+    if(runEnemy){
+        enemy.push(new Enemy(CRUSADER, L, canvas.width-70, FIRE, 100, 100, 100))
+        setTimeout(()=>{
+            enemy[0].run();
+        }, 1000);
+        runEnemy = false;
+    }
     render();
     if(!isGameOver){
         requestAnimationFrame(startGame);

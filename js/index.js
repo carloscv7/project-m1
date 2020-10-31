@@ -3,15 +3,17 @@ document.getElementById("play-btn").addEventListener("click", startGame);
 let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 
+let level = 1;
 const R = 0, L = 1, RSH = 2, LSH = 3, RS = 4, LS = 5; 
 const D = 2, U = 3;
 const FIRE = 0;
-const HERO = 0, CRUSADER = 1, PIRATE = 2;
+const HERO = 0, CRUSADER = 1, PIRATE = 2, KING = 3;
 let bgSrc = "../images/background.png", bgImg = new Image(), bgReady = false;
 bgImg.src = bgSrc; 
 bgImg.onload = function(){
     bgReady=true;
 }
+let potionSrc = ["../images/potion.png"], potionImg = [], potionReady = [], potions = [];
 let magicSrc = ["../images/fire.png"], magicImg = [], magicReady = [];
 let characterSrc = [["../images/derecha.png", "../images/izquierda.png",
 "../images/derecha-escudo.png", "../images/izquierda-escudo.png",
@@ -21,7 +23,10 @@ let characterSrc = [["../images/derecha.png", "../images/izquierda.png",
 "../images/e1-derecha-espada.png", "../images/e1-izquierda-espada.png"], 
 ["../images/e2-derecha.png", "../images/e2-izquierda.png",
 "../images/e2-derecha-escudo.png", "../images/e2-izquierda-escudo.png",
-"../images/e2-derecha-espada.png", "../images/e2-izquierda-espada.png"]], characterReady = [];
+"../images/e2-derecha-espada.png", "../images/e2-izquierda-espada.png"],
+["../images/e3-derecha.png", "../images/e3-izquierda.png", 
+"../images/e3-derecha-escudo.png", "../images/e3-izquierda-escudo.png",
+"../images/e3-derecha-espada.png", "../images/e3-izquierda-espada.png"]], characterReady = [];
 let characterImg = [], heroReady = [];
 for(let i = 0; i < characterSrc.length; i++){
     for(let j = 0; j < characterSrc[i].length; j++){
@@ -43,6 +48,14 @@ for(let i = 0; i < magicSrc.length; i++){
     }
 }
 
+for(let i = 0; i < potionSrc.length; i++){
+    potionImg.push(new Image());
+    potionImg[i].src = potionSrc[i];
+    potionImg[i].onload = function(){
+        potionReady[i] = true;
+    }
+}
+
 
 let isGameOver = false;
 function gameOver(){
@@ -53,6 +66,33 @@ function gameOver(){
     ctx.font = "80px Arial";
     ctx.fillText("Game over", 250, 270);
 }
+
+function win(){
+    isGameOver = true;
+    ctx.fillStyle = "green";
+    ctx.fillRect(100,100, 700, 300);
+    ctx.fillStyle = "white";
+    ctx.font = "80px Arial";
+    ctx.fillText("Ganaste", 250, 270);
+}
+
+function createAndRunEnemy(){
+    if(level === 2){
+        setTimeout(()=>{
+            enemy[0] = new Enemy(PIRATE, L, canvas.width-70, FIRE, 120, 50, 130);
+            enemy[0].run();
+        }, 2000);
+    }
+    if(level === 3){
+        setTimeout(()=>{
+            enemy[0] = new Enemy(PIRATE, L, canvas.width-141, FIRE, 50, 50, 50);
+            enemy[0].run();
+            enemy[1] = new Enemy(KING, L, canvas.width-70, FIRE, 120, 70, 70);
+            enemy[1].run();
+        }, 2000);
+    }
+}
+
 class Character{
     constructor(type, direction, x, magic, life, magicka, stamina){
         this.type = type;
@@ -239,6 +279,17 @@ class Character{
             }
 
         }
+        if(this.type === CRUSADER || this.type === PIRATE || this.type === KING){
+            if(this.isCollidingWith(hero).bool){
+                collision.bool = true;
+                collision.directions.push(this.isCollidingWith(hero).direction);
+            }
+            let index = enemy.indexOf(this);
+            if(this.isCollidingWith(enemy[(index+1)%enemy.length]).bool){
+                collision.bool = true;
+                collision.directions.push(this.isCollidingWith(enemy[(index+1)%enemy.length]).direction);
+            }
+        }
         return collision;
 
     }
@@ -325,10 +376,21 @@ class Enemy extends Character{
                 this.stamina++;
             }
             if(this.life <= 0){
-                clearInterval(intervalId2);
+                if(level === 3 && enemy.length === 1){
+                    win();
+                    setTimeout(()=>{clearInterval(intervalId2);}, 2000)
+                }else{
+                    enemy.splice(enemy.indexOf(this),1);
+                    potions.push(new Potion(potionImg[0], this.x+this.width/2, canvas.height-30));
+                    if(enemy.length === 0){
+                        level++;
+                        createAndRunEnemy();
+                    }
+                    clearInterval(intervalId2);
+                    
+                }
                 clearInterval(intervalId);
                 clearInterval(intervalId3);
-                enemy.splice(this.indexOf(enemy),1);
             }
         },100);
     }
@@ -354,12 +416,14 @@ class Hero extends Character{
                 this.swordAttack = false;
             }, 200);
 
-            if(this.isCollidingWith(enemy[0]).bool && this.direction === this.isCollidingWith(enemy[0]).direction){
-                if(enemy[0].shieldRaised){
-                    enemy[0].life -= 5;
-                    enemy[0].stamina -= 10;
-                }else{
-                    enemy[0].life -= 10;
+            for(let e of enemy){
+                if(this.isCollidingWith(e).bool && this.direction === this.isCollidingWith(e).direction){
+                    if(e.shieldRaised){
+                        e.life -= 5;
+                        e.stamina -= 10;
+                    }else{
+                        e.life -= 10;
+                    }
                 }
             }
             
@@ -385,11 +449,20 @@ class Hero extends Character{
         }, 550);
         let intervalId2 = setInterval(() => {
             if(this.shooting){
-                for(let i = 0; i < this.magicObjArr.length; i++){
-                    if(this.magicObjArr[i].isCollidingWith(enemy[0]).bool){
-                        enemy[0].life -= 10;
-                        this.magicObjArr.splice(i, 1);
+                for(let e of enemy){
+                    for(let i = 0; i < this.magicObjArr.length; i++){
+                        if(this.magicObjArr[i].isCollidingWith(e).bool){
+                                e.life -= 10;
+                                this.magicObjArr.splice(i, 1);
+                        }
                     }
+                }
+            }
+            for(let i = 0; i < potions.length; i++){
+                if(this.isCollidingWith(potions[i]).bool){
+                    console.log("hola");
+                    this.life += 50;
+                    potions.splice(i, 1);
                 }
             }
         }, 10);
@@ -431,6 +504,24 @@ class Magic{
     }
     ready(){
         for(let el of magicReady){
+            if(el === false){
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+class Potion{
+    constructor(img, x, y){
+        this.img = img;
+        this.x = x;
+        this.y = y;
+        this.width = 30;
+        this.height = 30;
+    }
+    ready(){
+        for(let el of potionReady){
             if(el === false){
                 return false;
             }
@@ -483,11 +574,6 @@ let enemy = [new Enemy(CRUSADER, L, canvas.width-70, FIRE, 100, 100, 100)];
 setTimeout(()=>{
     enemy[0].run();
 }, 2000);
-setTimeout(()=>{
-    //enemy[1].run();
-}, 2000);
-
-
 
 function render(){
     ctx.clearRect(0,0, canvas.width, canvas.height);
@@ -527,11 +613,11 @@ function render(){
 
     for(let i = 0; i < enemy.length; i++){
         if(enemy[i].ready()){
-            if(enemy[i].img === characterImg[CRUSADER][RS]){
+            if(enemy[i].img === characterImg[enemy[i].type][RS]){
                 enemy[i].width = 90;
                 enemy[i].height = 100;
                 ctx.drawImage(enemy[i].img, enemy[i].x, enemy[i].y, enemy[i].width, enemy[i].height);
-            }else if(enemy[i].img === characterImg[CRUSADER][LS]){
+            }else if(enemy[i].img === characterImg[enemy[i].type][LS]){
                 enemy[i].width = 90;
                 enemy[i].height = 100;
                 ctx.drawImage(enemy[i].img, enemy[i].x-20, enemy[i].y, enemy[i].width, enemy[i].height);
@@ -549,6 +635,12 @@ function render(){
             }
             ctx.fillStyle = "red";
             ctx.fillRect(canvas.width - 310 ,10+25*i, enemy[i].life*(300/enemy[i].initialLife), 20);
+        }
+    }
+
+    for(let i= 0; i < potions.length; i++){
+        if(potions[i].ready()){
+            ctx.drawImage(potions[i].img, potions[i].x, potions[i].y, potions[i].width, potions[i].height);
         }
     }
 }
